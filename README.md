@@ -18,6 +18,8 @@
 </div>
 
 **Live App:** http://161.97.158.103:3000/
+**Pitch Video:** https://drive.google.com/file/d/1g65NWjcp9JYqNcjbjb52eNzT6Q0e49x7/view?usp=sharing
+**Product Video:** https://streamable.com/bw8rjl
 
 ## Team
 
@@ -668,5 +670,6 @@ Made by Leo, Jeet, Ong, and Sterbweise
 ⭐ Star us on GitHub if you find this project useful!
 
 </div>
+
 
 

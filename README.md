@@ -23,6 +23,9 @@
 
 **Product Video:** https://streamable.com/bw8rjl
 
+<img width="1920" height="1037" alt="image" src="https://github.com/user-attachments/assets/ea3759f8-59b4-4435-9f26-45882b131c15" />
+
+
 ## Team
 
 | Name       | Github                                       |
@@ -672,6 +675,7 @@ Made by Leo, Jeet, Ong, and Sterbweise
 ⭐ Star us on GitHub if you find this project useful!
 
 </div>
+
 
 
 

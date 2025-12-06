@@ -21,7 +21,7 @@
 
 **Pitch Video:** https://drive.google.com/file/d/1g65NWjcp9JYqNcjbjb52eNzT6Q0e49x7/view?usp=sharing
 
-**Product Video:** https://streamable.com/bw8rjl
+**Product Video:** https://vimeo.com/1144151851?share=copy&fl=sv&fe=ci
 
 <img width="1920" height="1037" alt="image" src="https://github.com/user-attachments/assets/ea3759f8-59b4-4435-9f26-45882b131c15" />
 
@@ -675,6 +675,7 @@ Made by Leo, Jeet, Ong, and Sterbweise
 ⭐ Star us on GitHub if you find this project useful!
 
 </div>
+
 
 
 

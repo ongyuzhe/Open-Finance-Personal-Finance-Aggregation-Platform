@@ -1,95 +1,132 @@
 /**
  * Currency Service
- * Handles currency conversion and exchange rates
+ * Handles currency conversion and exchange rates with caching and API support
+ * Uses shared CurrencyUtils for fallback rates
  */
 
-import { injectable } from 'tsyringe';
-import { Money } from '../../domain/value-objects/Money.js';
-import { Logger } from '../../shared/Logger.js';
-import axios from 'axios';
+import { injectable } from "tsyringe";
+import { Money } from "../../domain/value-objects/Money.js";
+import { Logger } from "../../shared/Logger.js";
+import {
+  getFallbackRate,
+  isValidCurrency,
+  SUPPORTED_CURRENCY_CODES,
+  type Currency,
+} from "../../shared/CurrencyUtils.js";
+import axios from "axios";
+
+// Re-export types for backward compatibility
+export type { Currency };
+
+export interface CurrencyInfo {
+  code: Currency;
+  name: string;
+  symbol: string;
+  locale?: string;
+}
 
 export interface ExchangeRate {
-    from: string;
-    to: string;
-    rate: number;
-    timestamp: Date;
+  from: Currency;
+  to: Currency;
+  rate: number;
+  timestamp: Date;
 }
 
-export interface SupportedCurrency {
-    code: string;
-    name: string;
-    symbol: string;
-}
+const CURRENCY_INFO: CurrencyInfo[] = [
+  { code: "USD", name: "US Dollar", symbol: "$", locale: "en-US" },
+  { code: "MYR", name: "Malaysian Ringgit", symbol: "RM", locale: "ms-MY" },
+  { code: "SGD", name: "Singapore Dollar", symbol: "S$", locale: "en-SG" },
+  { code: "EUR", name: "Euro", symbol: "€", locale: "de-DE" },
+  { code: "GBP", name: "British Pound", symbol: "£", locale: "en-GB" },
+  { code: "JPY", name: "Japanese Yen", symbol: "¥", locale: "ja-JP" },
+  { code: "NGN", name: "Nigerian Naira", symbol: "₦", locale: "en-NG" },
+];
 
 @injectable()
 export class CurrencyService {
-    private rateCache: Map<string, { rate: number; expiresAt: Date }> = new Map();
-    private readonly CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
-    private readonly BASE_CURRENCY = 'USD';
+  private rateCache: Map<string, { rate: number; expiresAt: Date }> = new Map();
+  private readonly CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+  private readonly BASE_CURRENCY: Currency = "USD";
 
-    private readonly SUPPORTED_CURRENCIES: SupportedCurrency[] = [
-        { code: 'USD', name: 'US Dollar', symbol: '$' },
-        { code: 'MYR', name: 'Malaysian Ringgit', symbol: 'RM' },
-        { code: 'SGD', name: 'Singapore Dollar', symbol: 'S$' },
-        { code: 'EUR', name: 'Euro', symbol: '€' },
-        { code: 'GBP', name: 'British Pound', symbol: '£' },
-        { code: 'JPY', name: 'Japanese Yen', symbol: '¥' },
-        { code: 'NGN', name: 'Nigerian Naira', symbol: '₦' },
-    ];
+  constructor(private logger: Logger) {}
 
-    private readonly FALLBACK_RATES: Record<string, number> = {
-        USD: 1.0, MYR: 4.47, SGD: 1.34, EUR: 0.92, GBP: 0.79, JPY: 149.5, NGN: 850,
-    };
+  /**
+   * Get exchange rate between two currencies
+   * Uses cache first, then API, then fallback rates
+   */
+  async getExchangeRate(from: string, to: string): Promise<number> {
+    if (from === to) return 1.0;
 
-    constructor(private logger: Logger) { }
+    const cacheKey = `${from}_${to}`;
+    const cached = this.rateCache.get(cacheKey);
+    if (cached && cached.expiresAt > new Date()) return cached.rate;
 
-    async getExchangeRate(from: string, to: string): Promise<number> {
-        if (from === to) return 1.0;
-        const cacheKey = `${from}_${to}`;
-        const cached = this.rateCache.get(cacheKey);
-        if (cached && cached.expiresAt > new Date()) return cached.rate;
-
-        try {
-            const rate = await this.fetchExchangeRate(from, to);
-            this.rateCache.set(cacheKey, { rate, expiresAt: new Date(Date.now() + this.CACHE_TTL_MS) });
-            return rate;
-        } catch {
-            return this.getFallbackRate(from, to);
-        }
+    try {
+      const rate = await this.fetchExchangeRate(from, to);
+      this.rateCache.set(cacheKey, {
+        rate,
+        expiresAt: new Date(Date.now() + this.CACHE_TTL_MS),
+      });
+      return rate;
+    } catch {
+      // Use shared fallback rate utility
+      const rate = getFallbackRate(from, to);
+      if (!isValidCurrency(from)) {
+        this.logger.warn(`Invalid source currency: ${from}, using fallback`);
+      }
+      if (!isValidCurrency(to)) {
+        this.logger.warn(`Invalid target currency: ${to}, using fallback`);
+      }
+      return rate;
     }
+  }
 
-    async convert(money: Money, toCurrency: string): Promise<Money> {
-        if (money.currency === toCurrency) return money;
-        const rate = await this.getExchangeRate(money.currency, toCurrency);
-        return money.convertTo(toCurrency, rate);
-    }
+  /**
+   * Convert a Money object to another currency
+   */
+  async convert(money: Money, toCurrency: string): Promise<Money> {
+    if (money.currency === toCurrency) return money;
+    const rate = await this.getExchangeRate(money.currency, toCurrency);
+    return money.convertTo(toCurrency, rate);
+  }
 
-    async convertToBase(money: Money): Promise<Money> {
-        return this.convert(money, this.BASE_CURRENCY);
-    }
+  /**
+   * Convert Money to the base currency (USD)
+   */
+  async convertToBase(money: Money): Promise<Money> {
+    return this.convert(money, this.BASE_CURRENCY);
+  }
 
-    getSupportedCurrencies(): SupportedCurrency[] {
-        return [...this.SUPPORTED_CURRENCIES];
-    }
+  /**
+   * Get list of supported currencies
+   */
+  getSupportedCurrencies(): CurrencyInfo[] {
+    return [...CURRENCY_INFO];
+  }
 
-    isSupported(code: string): boolean {
-        return this.SUPPORTED_CURRENCIES.some(c => c.code === code.toUpperCase());
-    }
+  /**
+   * Check if a currency code is supported
+   */
+  isSupported(code: string): boolean {
+    return SUPPORTED_CURRENCY_CODES.includes(code.toUpperCase() as Currency);
+  }
 
-    private async fetchExchangeRate(from: string, to: string): Promise<number> {
-        const apiUrl = process.env.CURRENCY_API_URL ?? 'https://api.exchangerate-api.com/v4/latest';
-        const response = await axios.get(`${apiUrl}/${from}`, { timeout: 5000 });
-        if (response.data.rates?.[to]) return response.data.rates[to];
-        throw new Error(`Rate not found for ${from} to ${to}`);
-    }
+  /**
+   * Fetch live exchange rate from API
+   */
+  private async fetchExchangeRate(from: string, to: string): Promise<number> {
+    const apiUrl =
+      process.env.CURRENCY_API_URL ??
+      "https://api.exchangerate-api.com/v4/latest";
+    const response = await axios.get(`${apiUrl}/${from}`, { timeout: 5000 });
+    if (response.data.rates?.[to]) return response.data.rates[to];
+    throw new Error(`Rate not found for ${from} to ${to}`);
+  }
 
-    private getFallbackRate(from: string, to: string): number {
-        const fromToUsd = this.FALLBACK_RATES[from] ?? 1;
-        const toToUsd = this.FALLBACK_RATES[to] ?? 1;
-        return (1 / fromToUsd) * toToUsd;
-    }
-
-    clearCache(): void {
-        this.rateCache.clear();
-    }
+  /**
+   * Clear the rate cache
+   */
+  clearCache(): void {
+    this.rateCache.clear();
+  }
 }

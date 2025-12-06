@@ -1,0 +1,14 @@
+{
+  "name": "@myduit/shared-types",
+  "version": "1.0.0",
+  "description": "Shared types for MyDuit Platform",
+  "main": "types/index.ts",
+  "types": "types/index.ts",
+  "scripts": {
+    "type-check": "tsc --noEmit"
+  },
+  "keywords": ["types", "shared", "typescript"],
+  "author": "MyDuit Team",
+  "license": "MIT"
+}
+

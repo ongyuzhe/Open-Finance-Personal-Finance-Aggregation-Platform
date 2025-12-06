@@ -4,10 +4,10 @@ import { useState, useEffect } from 'react';
 import { DashboardOverview } from '@/components/DashboardOverview';
 import { SpendingChart } from '@/components/SpendingChart';
 import { CategoryBreakdown } from '@/components/CategoryBreakdown';
-import { NudgesList } from '@/components/NudgesList';
+import { AccountRepartitionChart } from '@/components/AccountRepartitionChart';
+import { SmartNudgesWidget } from '@/components/SmartNudgesWidget';
 import { TransactionList } from '@/components/TransactionList';
 import { AccountsGrid } from '@/components/AccountsGrid';
-import { SustainabilityScore } from '@/components/SustainabilityScore';
 import { Wallet, RefreshCw, AlertCircle } from 'lucide-react';
 
 export default function HomePage() {
@@ -35,10 +35,10 @@ export default function HomePage() {
                 // Transform API data to match component expectations
                 const transformedData = {
                     overview: {
-                        totalBalance: { amount: result.data.overview.totalBalance, currency: 'USD' },
-                        monthlyIncome: { amount: result.data.overview.monthlyIncome, currency: 'USD' },
-                        monthlyExpenses: { amount: result.data.overview.monthlyExpenses, currency: 'USD' },
-                        monthlyNetCashFlow: { amount: result.data.overview.monthlyNetCashFlow, currency: 'USD' },
+                        totalBalance: result.data.overview.totalBalance || { amount: 0, currency: 'USD' },
+                        monthlyIncome: result.data.overview.monthlyIncome || { amount: 0, currency: 'USD' },
+                        monthlyExpenses: result.data.overview.monthlyExpenses || { amount: 0, currency: 'USD' },
+                        monthlyNetCashFlow: result.data.overview.monthlyNetCashFlow || { amount: 0, currency: 'USD' },
                         savingsRate: result.data.overview.savingsRate,
                         accountsCount: result.data.overview.accountsCount,
                         transactionsCount: result.data.overview.transactionsCount,
@@ -47,22 +47,18 @@ export default function HomePage() {
                         id: acc.id,
                         name: acc.name,
                         provider: acc.provider,
-                        balance: { amount: acc.balance, currency: 'USD' },
+                        // Original balance in account's currency
+                        balance: acc.balance || { amount: 0, currency: 'USD' },
+                        // Converted balance in user's preferred currency
+                        balanceConverted: acc.balanceConverted || acc.balance || { amount: 0, currency: 'USD' },
                         percentageOfTotal: acc.percentageOfTotal,
                     })),
                     categories: result.data.categories || [],
-                    sustainability: {
-                        overall: result.data.sustainability?.overall ?? 62,
-                        ecoFriendlyCount: result.data.sustainability?.ecoFriendlyCount ?? 0,
-                        totalTransactions: result.data.sustainability?.totalTransactions ?? 0,
-                        carbonFootprintEstimate: result.data.sustainability?.carbonFootprintEstimate ?? 0,
-                        improvement: result.data.sustainability?.improvement ?? { trend: 'stable', percentage: 0 },
-                    },
                     recentTransactions: result.data.recentTransactions.map((tx: any) => ({
                         id: tx.id,
                         merchantName: tx.merchantName || 'Unknown',
                         category: tx.category,
-                        amount: { amount: tx.amount, currency: 'USD' },
+                        amount: tx.amount || { amount: 0, currency: 'USD' },
                         type: tx.type,
                         date: tx.date,
                         isRecurring: tx.isRecurring,
@@ -150,30 +146,16 @@ export default function HomePage() {
     if (!data) return null;
 
     return (
-        <div className="container">
-            <header className="header">
-                <div>
-                    <h1>
-                        <Wallet size={32} style={{ color: 'var(--accent-primary)' }} />
-                        Open Finance
-                    </h1>
-                    <p className="subtitle">Personal Finance Dashboard for Malaysian Professionals</p>
+        <div style={{ width: '100%', maxWidth: '100%', overflow: 'hidden' }}>
+            <header className="page-header">
+                <div className="page-title">
+                    <Wallet size={28} className="title-icon" />
+                    <div>
+                        <h1>Dashboard</h1>
+                        <p className="subtitle">Personal Finance Overview</p>
+                    </div>
                 </div>
-                <button
-                    onClick={fetchDashboardData}
-                    style={{
-                        padding: 'var(--spacing-sm) var(--spacing-md)',
-                        background: 'var(--glass-bg)',
-                        border: '1px solid var(--glass-border)',
-                        borderRadius: 'var(--radius-md)',
-                        color: 'var(--text-primary)',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 'var(--spacing-xs)',
-                    }}
-                    title="Refresh data"
-                >
+                <button onClick={fetchDashboardData} className="refresh-btn">
                     <RefreshCw size={16} />
                     Refresh
                 </button>
@@ -183,17 +165,23 @@ export default function HomePage() {
                 <DashboardOverview data={data.overview} />
             </div>
 
+            {/* Charts Section */}
             <div className="dashboard-grid-main" style={{ marginBottom: 'var(--spacing-xl)' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-lg)' }}>
                     <SpendingChart data={data.spendingTrends} />
                     <CategoryBreakdown data={data.categories} />
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-lg)' }}>
-                    {data.nudges.length > 0 && <NudgesList nudges={data.nudges} />}
-                    <SustainabilityScore data={data.sustainability} />
+                    <SmartNudgesWidget data={{
+                        overview: data.overview,
+                        categories: data.categories,
+                        accounts: data.accounts,
+                    }} />
+                    <AccountRepartitionChart accounts={data.accounts} />
                 </div>
             </div>
 
+            {/* Accounts Grid */}
             <div className="dashboard-grid" style={{ marginBottom: 'var(--spacing-xl)' }}>
                 <AccountsGrid accounts={data.accounts} />
             </div>

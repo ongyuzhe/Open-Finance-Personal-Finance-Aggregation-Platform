@@ -1,4 +1,4 @@
-﻿# MyDuit - Open Finance Personal Finance Aggregation Platform
+﻿# MyDuit - Personal Finance Aggregation Platform
 
 <div align="center">
 
@@ -675,6 +675,7 @@ Made by Leo, Jeet, Ong, and Sterbweise
 ⭐ Star us on GitHub if you find this project useful!
 
 </div>
+
 
 
 
